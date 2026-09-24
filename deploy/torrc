@@ -1,0 +1,5 @@
+SocksPort 0.0.0.0:9050
+SocksPolicy accept 172.16.0.0/12
+SocksPolicy reject *
+DataDirectory /tmp/tor
+Log notice stdout
