@@ -1,0 +1,19 @@
+{
+  "name": "lucky-free-jarvis",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/index.mjs",
+    "test": "node --test",
+    "check": "node --check server/index.mjs && node --check server/core.mjs && node --check public/app.js && node --check server/tools.mjs",
+    "browser:install": "playwright-core install chromium"
+  },
+  "dependencies": {
+    "playwright-core": "^1.63.0",
+    "socks-proxy-agent": "^8.0.5"
+  }
+}

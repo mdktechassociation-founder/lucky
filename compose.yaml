@@ -1,0 +1,44 @@
+services:
+  jarvis:
+    build: .
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      SEARXNG_URL: ${SEARXNG_URL:-}
+      SEARCH_LOCAL: ${SEARCH_LOCAL:-0}
+      PRIVACY_MODE: tor
+      TOR_PROXY: socks5h://tor:9050
+      KILO_MODEL: ${KILO_MODEL:-kilo-auto/free}
+      KILO_API_KEY: ${KILO_API_KEY:-}
+      ACCESS_TOKEN: ${ACCESS_TOKEN:?Set ACCESS_TOKEN in .env before using Compose}
+    depends_on:
+      - tor
+    mem_limit: 192m
+    networks: [private]
+    restart: unless-stopped
+  searxng:
+    image: searxng/searxng:latest
+    profiles: [search]
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-}
+    volumes:
+      - ./deploy/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    depends_on:
+      - tor
+    mem_limit: 384m
+    networks: [private]
+    restart: unless-stopped
+  tor:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.tor
+    mem_limit: 192m
+    networks: [private, outbound]
+    restart: unless-stopped
+networks:
+  private:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.29.49.0/24
+  outbound: {}
