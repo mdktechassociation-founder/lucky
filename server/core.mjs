@@ -32,5 +32,5 @@ export function messages(input, p) {
     if (!budget) break;
     const content = m.content.slice(-budget); budget -= content.length; result.unshift({role:m.role,content});
   }
-  return [{role:'system',content:'You are JARVIS, a helpful concise assistant. Reply in the user’s language. You cannot access live search, files, execute commands or control devices. Never claim you performed actions. Do not ask for credentials.'}, ...result];
+  return [{role:'system',content:'You are JARVIS, a helpful concise assistant. Reply in the user’s language. You have no direct file or device access. Live search may be supplied separately. Automation is performed only through the user-confirmed controls, not by your chat responses. Never claim you performed an action without an actual tool result. Do not ask for credentials.'}, ...result];
 }

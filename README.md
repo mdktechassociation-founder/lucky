@@ -1,6 +1,6 @@
 # Lucky · Free-only JARVIS
 
-A low-overhead, text-first JARVIS with a Kilo cloud brain, explicit free-price checks, optional local device speech and fail-closed Tor routing. **No local model, Claude subscription, ElevenLabs subscription or GPU is needed for this lightweight mode.**
+A low-overhead, text-first JARVIS with a Kilo cloud brain, live SearXNG search, confirmed Playwright/Android automation, explicit free-price checks, optional local device speech and fail-closed Tor routing. **No local model, Claude subscription, ElevenLabs subscription or GPU is needed for this lightweight mode.**
 
 Original JARVIS source is preserved under [`upstream/jarvis`](upstream/jarvis), with its license and audio credits. The default root app is a new lightweight implementation, **not a full conversion of the original 3D/Claude agent**. Running the upstream app still uses its original paid services.
 
@@ -14,11 +14,17 @@ Original JARVIS source is preserved under [`upstream/jarvis`](upstream/jarvis), 
 | Low RAM adaptation | Server OS/cgroup memory selects bounded context and response sizes; one in-flight request; no React/WebGL/model downloads |
 | Voice output | Browser local-service voices only; optional |
 | Microphone | Optional browser recognition, explicit warning/consent; may bypass Tor through the browser vendor |
-| Images, video, web search, device control, MCP tools | **Not implemented in the lightweight app**; no claim that these paid features have been replaced |
+| Live search | SearXNG JSON results with links; standalone search or opt-in grounded chat |
+| Browser automation | On-demand sandboxed Playwright Chromium; HTTPS host allowlist; Tor only; open/read/click/fill/close |
+| Android control | ADB device list/screenshot/tap/swipe/type/Back/Home; explicit serial allowlist |
+| Natural-language actions | AI proposes one validated action; user reviews and confirms; no autonomous execution |
+| Images/video generation, arbitrary MCP tools, iPhone | **Not implemented** |
 | Pollinations | **Not enabled**: live API/pricing could not be verified in the implementation environment. No unverified “unlimited free” fallback |
 | Offline intelligence | Not included; cloud chat needs working internet and a available free provider |
 
 “Free” means the app does not intentionally choose a paid model. Providers control quotas, terms, catalog accuracy and future pricing. A catalog check cannot prevent a provider changing billing between requests. Prefer anonymous access or an account with no funded balance and no auto-top-up. There is no quota bypass, account rotation or Tor circuit rotation.
+
+See **[Search and automation setup](AUTOMATION.md)** for the Action center, required tools, authorization and privacy boundaries. Automation is disabled by default.
 
 ## Quick start (Node 22+)
 
@@ -47,10 +53,10 @@ If you deliberately do not want Tor, set `PRIVACY_MODE=direct` in `.env` and res
 ```sh
 cp .env.example .env
 # Set ACCESS_TOKEN to a long random value in .env
- docker compose up --build -d
+docker compose up --build -d
 ```
 
-Open `http://localhost:3000`. The app is on an internal network, and only the Tor container also has external egress. The SOCKS port is not published to the host. Each container has a 192 MB memory limit; browser/OS/Docker overhead is additional. These are limits, not measured minimum requirements. Docker configuration has not been runtime-tested in this environment.
+Open `http://localhost:3000`. The app is on an internal network, and only the Tor container also has external egress. The SOCKS port is not published to the host. The app and Tor each have a 192 MB memory limit; the optional SearXNG service has a 384 MB limit. Browser/OS/Docker overhead is additional. The default Alpine image intentionally does not include Chromium or ADB; run the Node app on a suitable host for automation. These are limits, not measured minimum requirements. Docker configuration has not been runtime-tested in this environment.
 
 ### No API key required by default
 
@@ -63,24 +69,29 @@ Kilo documents anonymous access for free models. Optional `KILO_API_KEY` stays s
 - Limits are recalculated per request. Linux cgroup memory constraints are respected.
 - Browser low-motion mode is on by default. UI history is capped at 32 message bubbles. No camera, wake-word listener, 3D rendering or local model is loaded.
 - Health metrics describe the **server**, not necessarily the client computer. Browser device-memory hints only affect visual mode.
+- Browser automation refuses to launch with less than 512 MB available server RAM and closes after 2 minutes idle. Chromium uses additional memory; close it when finished. It is not automatically enabled on high-RAM systems.
 - **An actual 1 GB whole-system test has not been performed.** A minimal Linux host is the intended target, not a promise that Chrome + a desktop OS will fit in 1 GB. High RAM does not auto-install a heavier local model. GPU presence is irrelevant to this text client.
 
 ## Privacy and safety
 
 Tor can hide your source IP from the gateway; **it does not hide prompts, account identifiers, API keys, timing or model outputs from providers**. Kilo warns that auto-free routes may use providers that log data and use it to improve services. Do not send confidential data. Tor exit nodes may be blocked or rate-limited; the app reports an error rather than circumventing those restrictions.
 
+Tor routing covers the AI gateway, remote SearXNG requests, and the separate automation browser. A local SearXNG service needs its own upstream proxy; the optional Compose profile configures it. Opening search result links in your normal browser does **not** inherit server-side Tor. ADB uses a local/authorized device connection, not Tor, and apps on the phone use their own network.
+
 Microphone recognition is not a Tor-proxied backend feature. Browser vendors may process audio remotely; leave it off for a gateway-only privacy route. Voice output only selects voices marked `localService`; unavailable voices result in text-only output. No transcript is persisted by this app; the provider and browser may have their own retention.
 
-This is a single-user assistant, not a hardened multi-tenant public service. It executes no model-generated shell commands or HTML, exposes no file access, and has no spending, mail-sending or device-control tools. Answers are rendered as text. There is no background search or third-party asset loading in the lightweight frontend.
+This is a single-user assistant, not a hardened multi-tenant public service. It does not execute model-generated shell commands or HTML and exposes no general filesystem access. Automation requires an access token, explicit enable flags and expiring single-use confirmation IDs bound to normalized actions. **A confirmed click/tap can still send a message, delete data, or purchase something on the target screen.** Verify every action. There is no semantic guarantee that a selector or coordinate is harmless. Browser/phone text is not automatically sent to AI; only the separate planner task and configured hosts/serials are sent. Answers and tool text are rendered as text, not HTML. No automatic tool loop is used.
+
+The automation browser is a fresh sandboxed session, not an attached personal Chrome profile. Downloads, popups, service workers and WebSockets are blocked, with exact HTTPS host restrictions. This is not Tor Browser and does not promise fingerprint anonymity. Only allow trusted domains; application filtering is not a substitute for host/container network isolation.
 
 ## Paid-service replacement assessment
 
 - Claude brain → Kilo free catalog models: implemented for chat, **not Claude Agent SDK feature parity**.
 - ElevenLabs TTS → local browser voices: implemented, quality/language availability depends on OS.
 - ElevenLabs STT → browser recognition: optional, **not necessarily local/offline**. Local Whisper would need more RAM/CPU and is not installed.
-- Search APIs → self-hosted SearXNG is a possible future integration, but hosting and search-engine availability are not guaranteed; not wired up.
+- Search APIs → SearXNG is implemented, including optional Tor-proxied self-hosted Compose service. You must configure an instance; search engines can rate-limit/block Tor exits.
 - Image/video APIs → local ComfyUI would defeat the universal 1 GB/no-GPU goal; no fake free gateway promise.
-- Browser/device automation → upstream code preserved for reference, not exposed through untrusted free-model tool calls.
+- Browser/device automation → implemented with Playwright and Android ADB, plus user-confirmed one-step proposals. Not full upstream MCP/Claude Agent SDK parity.
 
 ## Verification
 
@@ -89,7 +100,9 @@ npm test
 npm run check
 ```
 
-Tests cover zero-price guard rejection, unknown models, memory profiles, input/history bounds, HTTP authentication, origin checks, static routing and Tor connection failure with no fallback. These tests do not contact a live AI provider. Outbound HTTPS to Kilo/Pollinations failed from the implementation sandbox, so **successful live generation has not been verified**. Tor circuit bootstrapping, microphone/audio playback and real 1 GB hardware require deployment testing.
+15 tests cover zero-price guard rejection, memory/history bounds, HTTP auth/origins, fail-closed Tor, search JSON via local HTTP fixtures, action validation, shell-metacharacter rejection, confirmation expiry/replay/cancellation, device allowlists, mock ADB screenshot/commands, mock Playwright navigation/click/fill/allowlists, and low-memory browser refusal. `npm run check` checks server and frontend syntax.
+
+These tests do not contact a live AI provider. Outbound HTTPS to Kilo/Pollinations failed from the implementation sandbox; **successful live generation is unverified**. Chromium download also failed with TLS `ECONNRESET`; no real browser automation or browser UI end-to-end test was possible here. There is no connected Android phone or Docker runtime in the sandbox. Actual ADB/Chromium execution, live SearXNG search, Compose/Tor startup, microphone playback and real 1 GB hardware require deployment testing.
 
 ## Sources / provenance
 
@@ -99,4 +112,4 @@ Tests cover zero-price guard rejection, unknown models, memory profiles, input/h
 - Kilo API docs: https://kilo.ai/docs/gateway
 - Free-model availability and data-handling warning: https://kilo.ai/docs/gateway/models-and-providers
 
-Original upstream dependencies are intentionally not installed by root `npm ci`. The root runtime has only the SOCKS proxy library and its transitive dependencies.
+Original upstream dependencies are intentionally not installed by root `npm ci`. The root runtime uses the SOCKS proxy library and `playwright-core`; Chromium is an explicit optional download, not part of `npm ci`.

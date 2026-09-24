@@ -1,0 +1,19 @@
+use_default_settings: true
+server:
+  # Supply SEARXNG_SECRET in compose; overrides this placeholder via environment.
+  secret_key: "configure-via-SEARXNG_SECRET"
+  limiter: false
+  image_proxy: false
+search:
+  formats:
+    - html
+    - json
+outgoing:
+  using_tor_proxy: true
+  retries: 0
+  pool_connections: 10
+  request_timeout: 15.0
+  max_request_timeout: 25.0
+  proxies:
+    all://:
+      - socks5h://tor:9050

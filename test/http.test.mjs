@@ -10,6 +10,9 @@ test('HTTP: auth, same-origin, static assets and fail-closed Tor',async t=>{
  const base='http://127.0.0.1:3199', headers={Authorization:'Bearer test-token','Content-Type':'application/json'};
  assert.equal((await fetch(base+'/')).status,200);
  assert.equal((await fetch(base+'/api/health')).status,401);
+ assert.equal((await fetch(base+'/api/tools/prepare',{method:'POST',headers,body:JSON.stringify({tool:'phone',action:'devices'})})).status,400);
+ const noApproval=await fetch(base+'/api/tools/execute',{method:'POST',headers,body:JSON.stringify({confirmation:'0'.repeat(48)})});assert.equal(noApproval.status,400);
+ const disabledSearch=await fetch(base+'/api/search',{method:'POST',headers,body:JSON.stringify({query:'test'})});assert.equal(disabledSearch.status,400);
  const health=await fetch(base+'/api/health',{headers}); assert.equal(health.status,200);assert.equal((await health.json()).privacy,'tor');
  assert.equal((await fetch(base+'/api/health',{headers:{...headers,Origin:'https://evil.example'}})).status,403);
  assert.equal((await fetch(base+'/api/health',{headers:{...headers,Origin:base}})).status,200);
