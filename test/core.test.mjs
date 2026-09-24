@@ -1,6 +1,20 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {zeroPricing,validateModel,profile,messages} from '../server/core.mjs';
+import {zeroPricing,validateModel,profile,messages,gatewayBase} from '../server/core.mjs';
+
+test('gateway base: default Kilo, https required, loopback http only in direct, credentials rejected',()=>{
+  assert.equal(gatewayBase({}),'https://api.kilo.ai/api/gateway');
+  assert.equal(gatewayBase({KILO_BASE_URL:'https://gw.example/v1/'}),'https://gw.example/v1');
+  assert.equal(gatewayBase({KILO_BASE_URL:'http://127.0.0.1:9999',PRIVACY_MODE:'direct'}),'http://127.0.0.1:9999');
+  for(const env of [
+    {KILO_BASE_URL:'http://127.0.0.1:9999',PRIVACY_MODE:'tor'},
+    {KILO_BASE_URL:'http://evil.example',PRIVACY_MODE:'direct'},
+    {KILO_BASE_URL:'https://user:pw@gw.example'},
+    {KILO_BASE_URL:'ftp://gw.example'},
+    {KILO_BASE_URL:'not a url'},
+  ]) assert.throws(()=>gatewayBase(env));
+  assert.equal(gatewayBase({KILO_BASE_URL:'   '}),'https://api.kilo.ai/api/gateway'); // blank falls back to default
+});
 
 test('only explicit zero cost accepted for all catalog pricing fields',()=>{
   assert.equal(zeroPricing({pricing:{prompt:'0',completion:0,request:'0'}}),true);

@@ -11,6 +11,20 @@ export function validateModel(catalog, id) {
   if (!model || !zeroPricing(model)) throw new Error('Free-only guard: selected model has missing, unknown, or nonzero pricing. No request sent.');
   return model;
 }
+// OpenAI-compatible gateway base. Defaults to Kilo. Custom bases must be HTTPS with no credentials;
+// plain http is accepted only for loopback in direct mode (local proxies/testing). Tor mode never bypasses the SOCKS route.
+export function gatewayBase(env = process.env) {
+  const raw = (String(env.KILO_BASE_URL ?? '').trim() || 'https://api.kilo.ai/api/gateway').replace(/\/+$/, '');
+  if (raw.length > 512) throw new Error('KILO_BASE_URL must be at most 512 characters.');
+  let url;
+  try { url = new URL(raw); } catch { throw new Error('KILO_BASE_URL must be an absolute URL, e.g. https://host/path.'); }
+  if (url.username || url.password) throw new Error('KILO_BASE_URL must not embed credentials.');
+  if (!url.hostname || !['https:', 'http:'].includes(url.protocol)) throw new Error('KILO_BASE_URL requires an http(s) URL.');
+  const loopback = ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(url.hostname);
+  if (url.protocol === 'https:') return raw;
+  if (env.PRIVACY_MODE === 'direct' && loopback) return raw;
+  throw new Error('KILO_BASE_URL must use HTTPS (plain http is allowed only for loopback with PRIVACY_MODE=direct).');
+}
 export function profile(total, free) {
   const low = total < 2 * 1024 ** 3 || free < 384 * 1024 ** 2;
   return {mode: low ? 'lite' : 'standard', totalMB: Math.round(total / 1024 ** 2), availableMB: Math.round(free / 1024 ** 2), maxMessages: low ? 6 : 16, maxTokens: low ? 384 : 1024, maxChars: low ? 4000 : 12000};
@@ -18,7 +32,7 @@ export function profile(total, free) {
 export function health() {
   let total = os.totalmem(), free = os.freemem();
   // Linux containers: respect cgroup limits instead of just host memory.
-  for (const [limit, usage] of [['/sys/fs/cgroup/memory.max','/sys/fs/cgroup/memory.current'], ['/sys/fs/cgroup/memory/memory.limit_in_bytes','/sys/fs/cgroup/memory/memory.usage_in_bytes']]) {
+  for (const [limit, usage] of [['/sys/fs/cgroup/memory.max','/sys/fs/cgroup/memory/current'], ['/sys/fs/cgroup/memory/memory.limit_in_bytes','/sys/fs/cgroup/memory/memory.usage_in_bytes']]) {
     try { const l = Number(fs.readFileSync(limit,'utf8')), u = Number(fs.readFileSync(usage,'utf8')); if (Number.isFinite(l) && l > 0 && l < total) { total = l; free = Math.min(free, Math.max(0,l-u)); } } catch {}
   }
   return profile(total, free);

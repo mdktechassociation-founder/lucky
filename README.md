@@ -8,7 +8,7 @@ Original JARVIS source is preserved under [`upstream/jarvis`](upstream/jarvis), 
 
 | Capability | Default lightweight app |
 |---|---|
-| Cloud text conversation | Kilo OpenAI-compatible API; defaults to `kilo-auto/free` |
+| Cloud text conversation | Kilo OpenAI-compatible API; defaults to `kilo-auto/free`; streamed token-by-token replies |
 | Free-only policy | Live catalog pricing checked before every generation; missing/unknown/nonzero price blocks the request |
 | Tor | Default `socks5h` route for gateway requests and DNS; no direct fallback |
 | Low RAM adaptation | Server OS/cgroup memory selects bounded context and response sizes; one in-flight request; no React/WebGL/model downloads |
@@ -23,6 +23,16 @@ Original JARVIS source is preserved under [`upstream/jarvis`](upstream/jarvis), 
 | Offline intelligence | Not included; cloud chat needs working internet and a available free provider |
 
 “Free” means the app does not intentionally choose a paid model. Providers control quotas, terms, catalog accuracy and future pricing. A catalog check cannot prevent a provider changing billing between requests. Prefer anonymous access or an account with no funded balance and no auto-top-up. There is no quota bypass, account rotation or Tor circuit rotation.
+
+## What's new in v1.1
+
+- **Streaming replies** — `/api/chat` accepts `stream:true` and relays OpenAI-style SSE (`meta` → `delta` → `done`) so answers type out token by token. The free-only pricing guard still runs before the stream opens. Non-streaming JSON remains supported.
+- **Custom gateway** — `KILO_BASE_URL` points at any OpenAI-compatible gateway (must expose `/models` with pricing). HTTPS only; plain `http` is accepted for loopback with `PRIVACY_MODE=direct` (local proxies/testing). Credentials in the URL are rejected. The pricing check is identical, so a custom gateway cannot smuggle in a paid model.
+- **Backoff headers** — rate-limit responses now send `Retry-After`, and the web app auto-retries a busy chat once.
+- **Usage counters** — `/api/health` reports uptime, chats, searches, executed actions and `blockedPaid` (times the free-only guard stopped a request). Shown in the sidebar.
+- **`/healthz`** — public liveness probe (no auth, no sensitive data) wired as the Docker `HEALTHCHECK` in `compose.yaml`.
+- **Chat ergonomics** — Enter to send (Shift+Enter newline), auto-growing input, per-message copy buttons, live “thinking…” while streaming, and optional tab-only history that survives reload but is never written to `localStorage` or disk.
+- **Hardening** — `Permissions-Policy` header disables camera/geolocation/usb/serial/cohort for the whole app; clipboard and microphone limited to same-origin.
 
 See **[Search and automation setup](AUTOMATION.md)** for the Action center, required tools, authorization and privacy boundaries. Automation is disabled by default.
 
